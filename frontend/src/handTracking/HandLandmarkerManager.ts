@@ -30,7 +30,7 @@ export class HandLandmarkerManager {
 
     try {
       const vision = await FilesetResolver.forVisionTasks(
-        'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@latest/wasm'
+        'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.20/wasm'
       );
 
       this.landmarker = await HandLandmarker.createFromOptions(vision, {
@@ -96,7 +96,9 @@ export class HandLandmarkerManager {
         const rawLandmarks = results.landmarks[i];
         const handednessCategory = results.handednesses[i]?.[0];
         const rawHandName = (handednessCategory?.categoryName.toLowerCase() as Handedness) || 'left';
-        const handedness: Handedness = mirror ? (rawHandName === 'left' ? 'right' : 'left') : rawHandName;
+        const handedness: Handedness = mirror
+          ? (rawHandName === 'left' ? 'right' : 'left')
+          : (rawHandName === 'left' ? 'left' : 'right');
         const confidence = handednessCategory?.score || 0.9;
 
         const transformedLandmarks: Landmark21[] = rawLandmarks.map((lm) => {

@@ -31,8 +31,8 @@ export const StudioViewport: React.FC<StudioViewportProps> = ({ onRegisterSavePN
   const lastStatUpdateRef = useRef<number>(0);
 
   const { tick } = useFps();
-  const config = useStudioStore();
   const setTrackingStats = useStudioStore((s) => s.setTrackingStats);
+  const mirrorWebcam = useStudioStore((s) => s.mirrorWebcam);
 
   // Initialize MediaPipe HandLandmarker & Three.js SceneManager
   useEffect(() => {
@@ -79,9 +79,10 @@ export const StudioViewport: React.FC<StudioViewportProps> = ({ onRegisterSavePN
   useEffect(() => {
     onRegisterSavePNGRef(() => {
       const webglCanvas = sceneManagerRef.current ? sceneManagerRef.current.getDomElement() : null;
-      saveCanvasSnapshot(videoRef.current, canvas2DRef.current, webglCanvas, config.mirrorWebcam);
+      const currentMirror = useStudioStore.getState().mirrorWebcam;
+      saveCanvasSnapshot(videoRef.current, canvas2DRef.current, webglCanvas, currentMirror);
     });
-  }, [config.mirrorWebcam, onRegisterSavePNGRef]);
+  }, [onRegisterSavePNGRef]);
 
   // Main 60 FPS Animation & Detection Loop
   useEffect(() => {
@@ -95,6 +96,9 @@ export const StudioViewport: React.FC<StudioViewportProps> = ({ onRegisterSavePN
       const video = videoRef.current;
       const canvas2D = canvas2DRef.current;
 
+      // Always grab latest config from Zustand store synchronously
+      const currentConfig = useStudioStore.getState();
+
       let detectedHands: HandTrackingData[] = [];
       let detectedGestures: GestureState[] = [];
 
@@ -104,11 +108,11 @@ export const StudioViewport: React.FC<StudioViewportProps> = ({ onRegisterSavePN
         const result = manager.detectVideoFrame(
           video,
           timestamp,
-          config.mirrorWebcam,
-          config.minCutoff,
-          config.beta,
-          config.dCutoff,
-          config.smoothingEnabled
+          currentConfig.mirrorWebcam,
+          currentConfig.minCutoff,
+          currentConfig.beta,
+          currentConfig.dCutoff,
+          currentConfig.smoothingEnabled
         );
         detectedHands = result.hands;
         detectedGestures = result.gestures;
@@ -137,30 +141,30 @@ export const StudioViewport: React.FC<StudioViewportProps> = ({ onRegisterSavePN
           ctx.clearRect(0, 0, width, height);
 
           // Render Shader Mode Filter overlay
-          ShaderPasses.applyCanvasModeFilter(ctx, width, height, config.visualMode, timestamp);
+          ShaderPasses.applyCanvasModeFilter(ctx, width, height, currentConfig.visualMode, timestamp);
 
           // Render Motion Trails
-          if (config.trailsEnabled && activeFingertips.length > 0) {
-            trailRendererRef.current.update(activeFingertips, config.trailLength, timestamp);
-            trailRendererRef.current.render(ctx, width, height, config.visualMode, config.glowEnabled);
+          if (currentConfig.trailsEnabled && activeFingertips.length > 0) {
+            trailRendererRef.current.update(activeFingertips, currentConfig.trailLength, timestamp);
+            trailRendererRef.current.render(ctx, width, height, currentConfig.visualMode, currentConfig.glowEnabled);
           } else {
             trailRendererRef.current.clear();
           }
 
           // Render Velocity-Reactive Fingertip Light Halos
-          if (config.glowEnabled) {
+          if (currentConfig.glowEnabled) {
             fingertipLightRef.current.render(
               ctx,
               width,
               height,
               activeFingertips,
-              config.visualMode,
-              config.effectIntensity
+              currentConfig.visualMode,
+              currentConfig.effectIntensity
             );
           }
 
           // Render Developer Debug Skeleton HUD
-          if (config.debugMode) {
+          if (currentConfig.debugMode) {
             DebugOverlay.render(ctx, width, height, detectedHands, detectedGestures);
           }
         }
@@ -168,7 +172,7 @@ export const StudioViewport: React.FC<StudioViewportProps> = ({ onRegisterSavePN
 
       // 3. Render Three.js WebGL Layer
       if (sceneManagerRef.current) {
-        sceneManagerRef.current.render(detectedHands, detectedGestures, config, deltaTime);
+        sceneManagerRef.current.render(detectedHands, detectedGestures, currentConfig, deltaTime);
       }
 
       // Calculate Latency & Tick FPS
@@ -183,12 +187,12 @@ export const StudioViewport: React.FC<StudioViewportProps> = ({ onRegisterSavePN
     return () => {
       if (animFrameIdRef.current) cancelAnimationFrame(animFrameIdRef.current);
     };
-  }, [handTrackerReady, config, tick, setTrackingStats]);
+  }, [handTrackerReady, tick, setTrackingStats]);
 
   return (
     <div className="relative w-full h-screen bg-slate-950 overflow-hidden select-none">
       {/* Layer 1: HTML5 Webcam Feed */}
-      <CameraLayer videoRef={videoRef} mirror={config.mirrorWebcam} />
+      <CameraLayer videoRef={videoRef} mirror={mirrorWebcam} />
 
       {/* Layer 2: 2D Canvas Layer (Light Halos, Motion Trails, Debug HUD) */}
       <canvas ref={canvas2DRef} className="absolute inset-0 w-full h-full pointer-events-none z-10" />

@@ -23,6 +23,7 @@ export class GeometricObjects {
 
   // Damped stable target transformation
   private targetPosition: THREE.Vector3 = new THREE.Vector3(0, 0, 0);
+  private targetRotation: THREE.Euler = new THREE.Euler(0, 0, 0);
   private currentPosition: THREE.Vector3 = new THREE.Vector3(0, 0, 0);
   private targetScale: THREE.Vector3 = new THREE.Vector3(1, 1, 1);
 
@@ -174,11 +175,12 @@ export class GeometricObjects {
 
   public setTransformTarget(
     ndcPos: Point3D,
-    _rotation: { rx: number; ry: number; rz: number },
+    rotation: { rx: number; ry: number; rz: number },
     scale: number
   ): void {
     // Lock position with smooth center tracking
     this.targetPosition.set(ndcPos.x * 4.5, ndcPos.y * 3.0, ndcPos.z * 2.0);
+    this.targetRotation.set(rotation.rx, rotation.ry, rotation.rz);
     const clampedScale = Math.max(0.4, Math.min(3.5, scale));
     this.targetScale.set(clampedScale, clampedScale, clampedScale);
   }
@@ -213,12 +215,6 @@ export class GeometricObjects {
       geometry.computeVertexNormals();
       this.updateWireframe();
       return;
-    }
-
-    // Lock root mesh rotation to ZERO during active tracking to eliminate wobble/spin!
-    this.meshGroup.rotation.set(0, 0, 0);
-    if (this.activeMesh) {
-      this.activeMesh.rotation.set(0, 0, 0);
     }
 
     // 1. Gather all Fingertip world positions
@@ -419,16 +415,14 @@ export class GeometricObjects {
   public update(deltaTime: number): void {
     if (!this.meshGroup) return;
 
-    // Rock-solid smooth lerp for position and scale
+    // Rock-solid smooth lerp for position, scale, and rotation
     const lerpSpeed = Math.min(1.0, 8.0 * deltaTime);
     this.meshGroup.position.lerp(this.targetPosition, lerpSpeed);
     this.meshGroup.scale.lerp(this.targetScale, lerpSpeed);
 
-    // Keep rotation at 0 to guarantee total stability
-    this.meshGroup.rotation.set(0, 0, 0);
-    if (this.activeMesh) {
-      this.activeMesh.rotation.set(0, 0, 0);
-    }
+    this.meshGroup.rotation.x += (this.targetRotation.x - this.meshGroup.rotation.x) * lerpSpeed;
+    this.meshGroup.rotation.y += (this.targetRotation.y - this.meshGroup.rotation.y) * lerpSpeed;
+    this.meshGroup.rotation.z += (this.targetRotation.z - this.meshGroup.rotation.z) * lerpSpeed;
   }
 
   public dispose(): void {
