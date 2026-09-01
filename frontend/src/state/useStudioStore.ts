@@ -56,6 +56,17 @@ interface StudioStore extends StudioConfig {
 }
 
 const LOCAL_STORAGE_KEY = 'hand_motion_studio_config_v1';
+const CONFIG_KEYS = Object.keys(DEFAULT_CONFIG) as (keyof StudioConfig)[];
+
+function extractConfig(state: Record<string, any>): StudioConfig {
+  const result = { ...DEFAULT_CONFIG };
+  for (const key of CONFIG_KEYS) {
+    if (key in state && state[key] !== undefined) {
+      (result as any)[key] = state[key];
+    }
+  }
+  return result;
+}
 
 export const useStudioStore = create<StudioStore>((set, get) => ({
   ...DEFAULT_CONFIG,
@@ -76,7 +87,8 @@ export const useStudioStore = create<StudioStore>((set, get) => ({
   updateConfig: (patch) => {
     set((state) => {
       const next = { ...state, ...patch };
-      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(next));
+      const configOnly = extractConfig(next);
+      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(configOnly));
       return next;
     });
   },
@@ -94,7 +106,8 @@ export const useStudioStore = create<StudioStore>((set, get) => ({
       const raw = localStorage.getItem(LOCAL_STORAGE_KEY);
       if (raw) {
         const parsed = JSON.parse(raw);
-        set((state) => ({ ...state, ...parsed }));
+        const configOnly = extractConfig(parsed);
+        set((state) => ({ ...state, ...configOnly }));
       }
     } catch (e) {
       console.warn('Failed to load saved config from localStorage', e);
@@ -103,6 +116,7 @@ export const useStudioStore = create<StudioStore>((set, get) => ({
 
   saveConfigToLocalStorage: () => {
     const current = get();
-    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(current));
+    const configOnly = extractConfig(current);
+    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(configOnly));
   },
 }));

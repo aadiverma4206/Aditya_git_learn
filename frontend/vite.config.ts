@@ -16,5 +16,17 @@ export default defineConfig({
   },
   optimizeDeps: {
     include: ['@mediapipe/tasks-vision', 'three']
-  }
+  },
+  build: {
+    chunkSizeWarningLimit: 1000,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          three: ['three'],
+          mediapipe: ['@mediapipe/tasks-vision'],
+          react: ['react', 'react-dom', 'zustand', 'lucide-react'],
+        },
+      },
+    },
+  },
 });
